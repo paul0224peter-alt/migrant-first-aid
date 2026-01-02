@@ -83,39 +83,38 @@ async function loadGuide(lang) {
 }
 
 let synth = window.speechSynthesis;
-let msg = null;
+let msgList = []; // 用陣列儲存分割後的句子，防止回收
 
 function speakText() {
     const title = document.getElementById('title').innerText;
     const s1 = document.getElementById('step1').innerText;
     const s2 = document.getElementById('step2').innerText;
-    const fullText = `${title}。${s1}。${s2}`;
-
-    // 2. 先停止所有正在進行或排隊的語音，清空佇列
+    
+    // 1. 先強制停止之前的聲音
     synth.cancel();
+    msgList = []; // 清空舊的列表
 
-    // 3. 建立語音物件
-    msg = new SpeechSynthesisUtterance(fullText);
+    // 2. 將全文拆散成小句，手機處理短句會穩定很多
+    const fullText = `${title}。${s1}。${s2}`;
+    const sentences = fullText.split(/[，。,.；]/).filter(s => s.trim().length > 0);
 
-    // 4. 設定語系
-    const langMap = { 'zh': 'zh-TW', 'vi': 'vi-VN', 'id': 'id-ID', 'th': 'th-TH' };
-    msg.lang = langMap[currentLang];
+    // 3. 依序建立語音物件並放入陣列排隊
+    sentences.forEach((text, index) => {
+        let utterance = new SpeechSynthesisUtterance(text);
+        
+        // 設定語系
+        const langMap = { 'zh': 'zh-TW', 'vi': 'vi-VN', 'id': 'id-ID', 'th': 'th-TH' };
+        utterance.lang = langMap[currentLang];
+        
+        // 針對中文微調語速
+        utterance.rate = (currentLang === 'zh') ? 0.8 : 0.9;
 
-    // 5. 手機優化：設定適當的語速與音調
-    msg.rate = 0.85; 
-    msg.pitch = 1.0;
-    msg.volume = 1.0;
+        // 將物件存入全域陣列，防止被手機系統回收
+        msgList.push(utterance);
 
-    msg.onend = function(event) {
-        console.log('播放完畢');
-        msg = null; 
-    };
-
-    msg.onerror = function(event) {
-        console.error('語音發生錯誤', event);
-    };
-
-    synth.speak(msg);
+        // 執行朗讀
+        synth.speak(utterance);
+    });
 }
 
         // 3. 節奏器開關
