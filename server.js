@@ -2,14 +2,20 @@ const express = require('express');
 const i18next = require('i18next');
 const Backend = require('i18next-fs-backend');
 const cors = require('cors');
+const path = require('path');
 
-const app = express();
+const app = express(); 
+
 app.use(cors()); 
+
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'index.html'));
+});
 
 i18next.use(Backend).init({
     lng: 'vi', 
     fallbackLng: 'zh',
-    backend: { loadPath: './locales/{{lng}}.json' }
+    backend: { loadPath: path.join(__dirname, 'locales', '{{lng}}.json') }
 }, (err, t) => {
     if (err) return console.error(err);
     console.log('多國語系系統就緒');
@@ -28,7 +34,10 @@ app.get('/guide/:lang', (req, res) => {
     });
 });
 
-app.use('/images', express.static('images'));
-app.listen(3000, () => {
-    console.log('伺服器執行在 http://localhost:3000');
+app.use('/images', express.static(path.join(__dirname, 'images')));
+
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+    console.log(`伺服器執行在 http://localhost:${PORT}`);
 });
