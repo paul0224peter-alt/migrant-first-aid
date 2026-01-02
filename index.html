@@ -82,54 +82,61 @@ async function loadGuide(lang) {
     }
 }
 let synth = window.speechSynthesis;
-let msgQueue = []; // 用來存放排隊的句子
+let currentUtterance = null; // 保持單一物件引用
 
 function speakText() {
-    const title = document.getElementById('title').innerText;
-    const s1 = document.getElementById('step1').innerText;
-    const s2 = document.getElementById('step2').innerText;
-    
-    // 1. 停止並清空目前的語音
+    // 1. 徹底停止並清除先前所有語音狀態
     synth.cancel();
-    msgQueue = [];
-
-    // 2. 文字預處理
-    let fullText = `${title}。${s1}。${s2}`;
-    if (currentLang === 'zh') {
-        fullText = fullText.replace(/CPR/gi, "西皮阿").replace(/119/g, "一一九");
-    }
-
-    // 3. 根據標點符號拆分句子
-    msgQueue = fullText.split(/[，。,.；]/).filter(s => s.trim().length > 0);
-
-    // 4. 開始執行遞迴朗讀
-    playNextSentence();
-}
-
-function playNextSentence() {
-    if (msgQueue.length === 0) return; // 全部唸完了
-
-    // 取出陣列中的第一句
-    let text = msgQueue.shift();
-    let utterance = new SpeechSynthesisUtterance(text);
     
-    const langMap = { 'zh': 'zh-TW', 'vi': 'vi-VN', 'id': 'id-ID', 'th': 'th-TH' };
-    utterance.lang = langMap[currentLang];
-    utterance.rate = (currentLang === 'zh') ? 0.8 : 0.9;
+    // 延遲 50 毫秒再開始，給手機系統釋放記憶體的時間
+    setTimeout(() => {
+        const title = document.getElementById('title').innerText;
+        const s1 = document.getElementById('step1').innerText;
+        const s2 = document.getElementById('step2').innerText;
+        
+        // 2. 文字預處理：將數字轉為更好唸的格式，並用空格產生停頓
+        let processedText = `${title}。 ${s1}。 ${s2}`;
+        
+        if (currentLang === 'zh') {
+            processedText = processedText
+                .replace(/CPR/gi, "西皮阿")
+                .replace(/119/g, "一 一 九")
+                .replace(/，/g, " ， ")
+                .replace(/。/g, " 。 ");
+        }
 
-    // 5. 關鍵：監聽「結束」事件，唸完這句才唸下一句
-    utterance.onend = function() {
-        playNextSentence();
-    };
+        // 3. 建立語音物件
+        currentUtterance = new SpeechSynthesisUtterance(processedText);
+        
+        const langMap = { 'zh': 'zh-TW', 'vi': 'vi-VN', 'id': 'id-ID', 'th': 'th-TH' };
+        currentUtterance.lang = langMap[currentLang];
+        
+        // 4. 設定穩定參數
+        currentUtterance.rate = (currentLang === 'zh') ? 0.75 : 0.85; // 再放慢一點點增加穩定度
+        currentUtterance.pitch = 1.0;
+        currentUtterance.volume = 1.0;
 
-    // 監聽錯誤，防止卡死
-    utterance.onerror = function() {
-        playNextSentence();
-    };
+        // 5. 修正手機端斷氣補丁
+        let keepAlive = null;
+        currentUtterance.onstart = () => {
+            keepAlive = setInterval(() => {
+                if (synth.speaking) {
+                    synth.pause();
+                    synth.resume();
+                } else {
+                    clearInterval(keepAlive);
+                }
+            }, 5000); // 縮短為 5 秒檢查一次
+        };
 
-    synth.speak(utterance);
+        currentUtterance.onend = () => {
+            if (keepAlive) clearInterval(keepAlive);
+        };
+
+        // 6. 執行
+        synth.speak(currentUtterance);
+    }, 50);
 }
-
         // 3. 節奏器開關
         function toggleMetronome() {
             const btn = document.getElementById('metro-btn');
