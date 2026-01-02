@@ -82,42 +82,52 @@ async function loadGuide(lang) {
     }
 }
 let synth = window.speechSynthesis;
-let msgList = []; 
+let msgQueue = []; // 用來存放排隊的句子
 
 function speakText() {
     const title = document.getElementById('title').innerText;
     const s1 = document.getElementById('step1').innerText;
     const s2 = document.getElementById('step2').innerText;
     
-    // 1. 強制停止舊語音
+    // 1. 停止並清空目前的語音
     synth.cancel();
-    msgList = [];
+    msgQueue = [];
 
-    // 2. 文字預處理 (針對中文優化)
+    // 2. 文字預處理
     let fullText = `${title}。${s1}。${s2}`;
     if (currentLang === 'zh') {
-        // 將手機容易讀錯的縮寫與數字轉為中文
-        fullText = fullText.replace(/CPR/gi, "西皮阿")
-                           .replace(/119/g, "一 一 九");
+        fullText = fullText.replace(/CPR/gi, "西皮阿").replace(/119/g, "一一九");
     }
 
-    // 3. 分割長句為短句，解決手機斷斷續續的問題
-    const sentences = fullText.split(/[，。,.；]/).filter(s => s.trim().length > 0);
+    // 3. 根據標點符號拆分句子
+    msgQueue = fullText.split(/[，。,.；]/).filter(s => s.trim().length > 0);
 
-    // 4. 依序加入排隊
-    sentences.forEach((text) => {
-        let utterance = new SpeechSynthesisUtterance(text);
-        
-        const langMap = { 'zh': 'zh-TW', 'vi': 'vi-VN', 'id': 'id-ID', 'th': 'th-TH' };
-        utterance.lang = langMap[currentLang];
-        
-        // 設定語速，中文稍微放慢
-        utterance.rate = (currentLang === 'zh') ? 0.8 : 0.9; 
+    // 4. 開始執行遞迴朗讀
+    playNextSentence();
+}
 
-        // 存入全域陣列，防止被手機回收
-        msgList.push(utterance);
-        synth.speak(utterance);
-    });
+function playNextSentence() {
+    if (msgQueue.length === 0) return; // 全部唸完了
+
+    // 取出陣列中的第一句
+    let text = msgQueue.shift();
+    let utterance = new SpeechSynthesisUtterance(text);
+    
+    const langMap = { 'zh': 'zh-TW', 'vi': 'vi-VN', 'id': 'id-ID', 'th': 'th-TH' };
+    utterance.lang = langMap[currentLang];
+    utterance.rate = (currentLang === 'zh') ? 0.8 : 0.9;
+
+    // 5. 關鍵：監聽「結束」事件，唸完這句才唸下一句
+    utterance.onend = function() {
+        playNextSentence();
+    };
+
+    // 監聽錯誤，防止卡死
+    utterance.onerror = function() {
+        playNextSentence();
+    };
+
+    synth.speak(utterance);
 }
 
         // 3. 節奏器開關
