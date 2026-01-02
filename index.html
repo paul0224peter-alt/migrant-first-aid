@@ -81,17 +81,42 @@ async function loadGuide(lang) {
         console.error("錯誤細節:", error);
     }
 }
-        // 2. 語音朗讀功能
-        function speakText() {
-            const title = document.getElementById('title').innerText;
-            const s1 = document.getElementById('step1').innerText;
-            const s2 = document.getElementById('step2').innerText;
-            
-            const msg = new SpeechSynthesisUtterance(`${title}. ${s1}. ${s2}`);
-            const langMap = { 'zh': 'zh-TW', 'vi': 'vi-VN', 'id': 'id-ID', 'th': 'th-TH' };
-            msg.lang = langMap[currentLang];
-            window.speechSynthesis.speak(msg);
-        }
+
+let synth = window.speechSynthesis;
+let msg = null;
+
+function speakText() {
+    const title = document.getElementById('title').innerText;
+    const s1 = document.getElementById('step1').innerText;
+    const s2 = document.getElementById('step2').innerText;
+    const fullText = `${title}。${s1}。${s2}`;
+
+    // 2. 先停止所有正在進行或排隊的語音，清空佇列
+    synth.cancel();
+
+    // 3. 建立語音物件
+    msg = new SpeechSynthesisUtterance(fullText);
+
+    // 4. 設定語系
+    const langMap = { 'zh': 'zh-TW', 'vi': 'vi-VN', 'id': 'id-ID', 'th': 'th-TH' };
+    msg.lang = langMap[currentLang];
+
+    // 5. 手機優化：設定適當的語速與音調
+    msg.rate = 0.85; 
+    msg.pitch = 1.0;
+    msg.volume = 1.0;
+
+    msg.onend = function(event) {
+        console.log('播放完畢');
+        msg = null; 
+    };
+
+    msg.onerror = function(event) {
+        console.error('語音發生錯誤', event);
+    };
+
+    synth.speak(msg);
+}
 
         // 3. 節奏器開關
         function toggleMetronome() {
