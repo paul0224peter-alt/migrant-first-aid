@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>移工急救指引 First Aid Guide</title>
+    <style>
+        /* 樣式區：只放 CSS */
+        body { font-family: sans-serif; text-align: center; padding: 20px; background-color: #f9f9f9; }
+        .btn-group { margin-bottom: 20px; }
+        button { padding: 10px 20px; margin: 5px; font-size: 16px; cursor: pointer; border-radius: 5px; border: 1px solid #ccc; }
+        #content { border: 2px solid #ff4444; border-radius: 10px; padding: 20px; margin-top: 20px; display: none; background-color: white; }
+        .audio-btn { background-color: #4CAF50; color: white; border: none; }
+        #cpr-metronome { margin-top: 30px; padding: 20px; border-top: 2px dashed #ccc; }
+        #metro-btn { 
+            background-color: #ff4444; color: white; border-radius: 50%; 
+            width: 120px; height: 120px; font-weight: bold; border: none;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+        }
+    </style>
+</head>
+<body>
+
+    <h1>🚨 急救指引 (First Aid)</h1>
+    
+    <div class="btn-group">
+        <button onclick="loadGuide('zh')">中文</button>
+        <button onclick="loadGuide('vi')">Tiếng Việt (越南)</button>
+        <button onclick="loadGuide('id')">Bahasa Indonesia (印尼)</button>
+        <button onclick="loadGuide('th')">ไทย (泰國)</button>
+    </div>
+
+<div id="content">
+    <h2 id="title"></h2>
+    
+    <div style="display: flex; justify-content: space-around; flex-wrap: wrap;">
+        <div class="step-box">
+            <img id="img1" src="" width="150" style="display:none; border-radius: 8px;">
+            <p id="step1"></p>
+        </div>
+        <div class="step-box">
+            <img id="img2" src="" width="150" style="display:none; border-radius: 8px;">
+            <p id="step2"></p>
+        </div>
+    </div>
+    
+    <button class="audio-btn" onclick="speakText()">🔊 語音朗讀 (Play Audio)</button>
+</div>
+
+    <div id="cpr-metronome">
+        <h3>💓 CPR 按壓節奏器</h3>
+        <button id="metro-btn" onclick="toggleMetronome()">
+            開始節奏<br>(START)
+        </button>
+        <p>請跟著「嗶」聲按壓：每分鐘 110 次</p>
+    </div>
+
+    <script>
+        let currentLang = 'zh';
+        let metroInterval = null;
+        let audioCtx = null;
+
+async function loadGuide(lang) {
+    currentLang = lang;
+    try {
+        const response = await fetch(`http://localhost:3000/guide/${lang}`);
+        const data = await response.json();
+        
+        document.getElementById('content').style.display = 'block';
+        document.getElementById('title').innerText = data.title;
+
+        document.getElementById('step1').innerText = data.steps[0].text;
+        document.getElementById('img1').src = `http://localhost:3000${data.steps[0].img}`;
+        document.getElementById('img1').style.display = 'block';
+
+        document.getElementById('step2').innerText = data.steps[1].text;
+        document.getElementById('img2').src = `http://localhost:3000${data.steps[1].img}`;
+        document.getElementById('img2').style.display = 'block';
+
+    } catch (error) {
+        console.error("錯誤細節:", error);
+    }
+}
+        // 2. 語音朗讀功能
+        function speakText() {
+            const title = document.getElementById('title').innerText;
+            const s1 = document.getElementById('step1').innerText;
+            const s2 = document.getElementById('step2').innerText;
+            
+            const msg = new SpeechSynthesisUtterance(`${title}. ${s1}. ${s2}`);
+            const langMap = { 'zh': 'zh-TW', 'vi': 'vi-VN', 'id': 'id-ID', 'th': 'th-TH' };
+            msg.lang = langMap[currentLang];
+            window.speechSynthesis.speak(msg);
+        }
+
+        // 3. 節奏器開關
+        function toggleMetronome() {
+            const btn = document.getElementById('metro-btn');
+
+            if (metroInterval) {
+                clearInterval(metroInterval);
+                metroInterval = null;
+                btn.innerText = "開始節奏\n(START)";
+                btn.style.backgroundColor = "#ff4444";
+            } else {
+                const bpm = 110;
+                const ms = 60000 / bpm;
+                if (!audioCtx) {
+                    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+                metroInterval = setInterval(playBeep, ms);
+                btn.innerText = "停止節奏\n(STOP)";
+                btn.style.backgroundColor = "#333";
+            }
+        }
+
+        // 4. 發出嗶聲
+        function playBeep() {
+            if (!audioCtx) return;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(440, audioCtx.currentTime);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.1);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.1);
+        }
+    </script>
+</body>
+</html>
