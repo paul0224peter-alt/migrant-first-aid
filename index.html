@@ -63,18 +63,18 @@
 async function loadGuide(lang) {
     currentLang = lang;
     try {
-        const response = await fetch(`http://localhost:3000/guide/${lang}`);
+        const response = await fetch(`https://migrant-first-aid.onrender.com/guide/${lang}`);
         const data = await response.json();
         
         document.getElementById('content').style.display = 'block';
         document.getElementById('title').innerText = data.title;
 
         document.getElementById('step1').innerText = data.steps[0].text;
-        document.getElementById('img1').src = `http://localhost:3000${data.steps[0].img}`;
+        document.getElementById('img1').src = `https://migrant-first-aid.onrender.com${data.steps[0].img}`;
         document.getElementById('img1').style.display = 'block';
 
         document.getElementById('step2').innerText = data.steps[1].text;
-        document.getElementById('img2').src = `http://localhost:3000${data.steps[1].img}`;
+        document.getElementById('img2').src = `https://migrant-first-aid.onrender.com${data.steps[1].img}`;
         document.getElementById('img2').style.display = 'block';
 
     } catch (error) {
