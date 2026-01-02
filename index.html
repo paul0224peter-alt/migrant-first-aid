@@ -81,38 +81,41 @@ async function loadGuide(lang) {
         console.error("錯誤細節:", error);
     }
 }
-
 let synth = window.speechSynthesis;
-let msgList = []; // 用陣列儲存分割後的句子，防止回收
+let msgList = []; 
 
 function speakText() {
     const title = document.getElementById('title').innerText;
     const s1 = document.getElementById('step1').innerText;
     const s2 = document.getElementById('step2').innerText;
     
-    // 1. 先強制停止之前的聲音
+    // 1. 強制停止舊語音
     synth.cancel();
-    msgList = []; // 清空舊的列表
+    msgList = [];
 
-    // 2. 將全文拆散成小句，手機處理短句會穩定很多
-    const fullText = `${title}。${s1}。${s2}`;
+    // 2. 文字預處理 (針對中文優化)
+    let fullText = `${title}。${s1}。${s2}`;
+    if (currentLang === 'zh') {
+        // 將手機容易讀錯的縮寫與數字轉為中文
+        fullText = fullText.replace(/CPR/gi, "西皮阿")
+                           .replace(/119/g, "一 一 九");
+    }
+
+    // 3. 分割長句為短句，解決手機斷斷續續的問題
     const sentences = fullText.split(/[，。,.；]/).filter(s => s.trim().length > 0);
 
-    // 3. 依序建立語音物件並放入陣列排隊
-    sentences.forEach((text, index) => {
+    // 4. 依序加入排隊
+    sentences.forEach((text) => {
         let utterance = new SpeechSynthesisUtterance(text);
         
-        // 設定語系
         const langMap = { 'zh': 'zh-TW', 'vi': 'vi-VN', 'id': 'id-ID', 'th': 'th-TH' };
         utterance.lang = langMap[currentLang];
         
-        // 針對中文微調語速
-        utterance.rate = (currentLang === 'zh') ? 0.8 : 0.9;
+        // 設定語速，中文稍微放慢
+        utterance.rate = (currentLang === 'zh') ? 0.8 : 0.9; 
 
-        // 將物件存入全域陣列，防止被手機系統回收
+        // 存入全域陣列，防止被手機回收
         msgList.push(utterance);
-
-        // 執行朗讀
         synth.speak(utterance);
     });
 }
